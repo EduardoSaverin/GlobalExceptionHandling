@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
@@ -17,25 +18,40 @@ public class ExceptionHandlers {
     Logger logger = LoggerFactory.getLogger(ExceptionHandler.class);
 
     /**
-     * Remember when you provide message attribute in Exception Handler only that's returned because it has priority.
+     * Remember when you provide message attribute in @ExceptionHandler only that's returned because it has priority.
+     *
      * @param request
      * @param ex
      * @return
      */
     @ResponseStatus(value = HttpStatus.INTERNAL_SERVER_ERROR)
-    @ExceptionHandler({Exception.class,EmployeeNotFoundException.class})
-    public ResponseEntity<Object> GlobalExceptionHandler(HttpServletRequest request, Exception ex){
+    @ExceptionHandler({Exception.class, EmployeeNotFoundException.class})
+    public ResponseEntity<Object> GlobalExceptionHandler(HttpServletRequest request, Exception ex) {
+        GlobalException globalException = generateExceptionObject(request, ex, HttpStatus.INTERNAL_SERVER_ERROR, true);
+        logger.error(ex.getLocalizedMessage());
+        return new ResponseEntity<>(globalException, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<Object> handleRequiredParamsException(HttpServletRequest request,MissingServletRequestParameterException ex){
+        GlobalException globalException = generateExceptionObject(request, ex, HttpStatus.BAD_REQUEST, false);
+        logger.error(ex.getLocalizedMessage());
+        return new ResponseEntity<>(globalException,HttpStatus.BAD_REQUEST);
+    }
+
+    private GlobalException generateExceptionObject(HttpServletRequest request, Exception e, HttpStatus httpStatus, boolean sendErros) {
         GlobalException globalException = new GlobalException();
-        globalException.code = HttpStatus.INTERNAL_SERVER_ERROR.value();
-        globalException.status = HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase();
-        globalException.message = ex.getMessage();
+        globalException.code = httpStatus.value();
+        globalException.status = httpStatus.getReasonPhrase();
+        globalException.message = e.getMessage();
         globalException.url = request.getRequestURL().toString();
-        List<String> errors = new ArrayList<>();
-        for(StackTraceElement stackTraceElement : ex.getStackTrace()){
-            errors.add(stackTraceElement.getFileName() + "("+stackTraceElement.getMethodName()+") : "+stackTraceElement.getLineNumber());
+        if (sendErros) {
+            List<String> errors = new ArrayList<>();
+            for (StackTraceElement stackTraceElement : e.getStackTrace()) {
+                errors.add(stackTraceElement.getFileName() + "(" + stackTraceElement.getMethodName() + ") : " + stackTraceElement.getLineNumber());
+            }
+            globalException.errors = errors;
         }
-        globalException.errors = errors;
-        logger.error("Exception handled");
-        return new ResponseEntity<>(globalException,HttpStatus.INTERNAL_SERVER_ERROR);
+        return globalException;
     }
 }
