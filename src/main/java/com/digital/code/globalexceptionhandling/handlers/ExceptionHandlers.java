@@ -6,8 +6,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
@@ -28,15 +30,22 @@ public class ExceptionHandlers {
     @ExceptionHandler({Exception.class, EmployeeNotFoundException.class})
     public ResponseEntity<Object> GlobalExceptionHandler(HttpServletRequest request, Exception ex) {
         GlobalException globalException = generateExceptionObject(request, ex, HttpStatus.INTERNAL_SERVER_ERROR, true);
-        logger.error(ex.getLocalizedMessage());
+        logger.error("Exception ",ex);
         return new ResponseEntity<>(globalException, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    @ExceptionHandler(MissingServletRequestParameterException.class)
-    public ResponseEntity<Object> handleRequiredParamsException(HttpServletRequest request,MissingServletRequestParameterException ex){
+    @ExceptionHandler({MissingServletRequestParameterException.class})
+    public ResponseEntity<Object> handleRequiredParamsException(HttpServletRequest request,Exception ex){
         GlobalException globalException = generateExceptionObject(request, ex, HttpStatus.BAD_REQUEST, false);
-        logger.error(ex.getLocalizedMessage());
+        logger.error("Exception ",ex);
         return new ResponseEntity<>(globalException,HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Object> method(HttpServletRequest request,Exception ex){
+        GlobalException globalException = generateExceptionObject(request, ex, HttpStatus.METHOD_NOT_ALLOWED, false);
+        logger.error("Exception ",ex);
+        return new ResponseEntity<>(globalException,HttpStatus.METHOD_NOT_ALLOWED);
     }
 
     private GlobalException generateExceptionObject(HttpServletRequest request, Exception e, HttpStatus httpStatus, boolean sendErros) {
